@@ -1,42 +1,45 @@
-       *>-----------------IDENTIFICAÇÃO------------------
-        IDENTIFICATION DIVISION.
-        PROGRAM-ID.    COBanko.
-        AUTHOR.        WESLEY A. M.
-       *>-----------------AMBIENTE----------------------
-        ENVIRONMENT DIVISION.
-        INPUT-OUTPUT SECTION.
-        FILE-CONTROL.
+      *>-----------------IDENTIFICAÇÃO------------------
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    COBanko.
+       AUTHOR.        WESLEY A. M.
+      *>-----------------AMBIENTE----------------------
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
            SELECT ARQUIVO-CONTAS ASSIGN TO "contas.txt"
                         ORGANIZATION IS LINE SEQUENTIAL
                         FILE STATUS IS FILE-STATUS-ARQUIVO.
-       *>------------------DADOS-------------------------
-        DATA DIVISION.
+      *>------------------DADOS-------------------------
+       DATA DIVISION.
 
-        FILE SECTION.
-        FD ARQUIVO-CONTAS.
-        01 REGISTRO-ARQUIVO.
+       FILE SECTION.
+       FD ARQUIVO-CONTAS.
+       01 REGISTRO-ARQUIVO.
            05 ARQ-NUM-CONTA PIC 9(6).
            05 ARQ-NOME      PIC X(30).
            05 ARQ-CPF       PIC 9(11).
            05 ARQ-STATUS    PIC X(7).
            05 ARQ-DATA      PIC X(14).
 
-        WORKING-STORAGE SECTION.
-       *>----------VARIÁVEIS------------
-        01 OPCAO-MENU            PIC 9(1).
-        01 NOME-CLIENTE          PIC X(30).
-        01 CPF                   PIC 9(11).
-        01 CONTADOR-CONTA        PIC 9(6) VALUE ZEROS.
-        01 DATA-COMPLETA         PIC X(20).
-        01 FILE-STATUS-ARQUIVO   PIC XX.
-        01 FLAG-CPF-STATUS    PIC X  VALUE "N".
+       WORKING-STORAGE SECTION.
+      *>----------VARIÁVEIS------------
+       01 OPCAO-MENU            PIC 9(1).
+       01 NOME-CLIENTE          PIC X(30).
+       01 CPF                   PIC 9(11).
+       01 CONTADOR-CONTA        PIC 9(6) VALUE ZEROS.
+       01 DATA-COMPLETA         PIC X(20).
+       01 FILE-STATUS-ARQUIVO   PIC XX.
+       01 FLAG-CPF-STATUS    PIC X  VALUE "N".
            88 CPF-DUPLICADO      VALUE "S".
            88 CPF-DISPONIVEL     VALUE "N".
-        01 EOF-FLAG              PIC X VALUE "N".
-           88 EOF-ARQUIVO        VALUE "S".
+       01 CAMPO-BUSCA        PIC X(30).
+
+      *>EOF-FIM DO ARQUIVO
+       01 EOF-FLAG              PIC X VALUE "N".
+           88 EOF-ARQUIVO        VALUE "S". 
            88 LER-CONTINUAR      VALUE "N".
-       *>-------REGISTRO DE DADOS-------
-        01 REGISTRO-CONTA.
+      *>-------REGISTRO DE DADOS-------
+       01 REGISTRO-CONTA.
            05 NUMERO-CONTA PIC 9(6).
            05 DATA-CRIACAO.
               10 DD   PIC 9(2).
@@ -50,18 +53,18 @@
            05 SITUACAO  PIC X(7).
            05 SALDO        PIC S9(5)V99.
 
-        01 STATUS-CONTA PIC X(7).
+       01 STATUS-CONTA PIC X(7).
             88 ATIVA    VALUE 'ATIVA'.
             88 INATIVA  VALUE 'INATIVA'.
 
-       *>--------------------LÓGICA----------------------
-        PROCEDURE DIVISION.
+      *>--------------------LÓGICA----------------------
+       PROCEDURE DIVISION.
            OPEN OUTPUT ARQUIVO-CONTAS 
            CLOSE ARQUIVO-CONTAS
            PERFORM MENU-PRINCIPAL UNTIL OPCAO-MENU = 6
            STOP RUN.
-       *>------PARAGRAFO MENU--------
-        MENU-PRINCIPAL.
+      *>------PARAGRAFO MENU--------
+       MENU-PRINCIPAL.
            DISPLAY "1 - CRIAR CONTA."
            DISPLAY "2 - CONSULTAR SALDO."
            DISPLAY "3 - SACAR."
@@ -74,7 +77,7 @@
               WHEN 1
                  PERFORM CRIAR-CONTA
               WHEN 2
-                 DISPLAY "CONSULTANDO SALDO"
+                 PERFORM CONSULTAR-SALDO
               WHEN 3
                  DISPLAY "SACANDO..."
               WHEN 4
@@ -86,8 +89,8 @@
               WHEN OTHER
                  DISPLAY "OPÇÃO INVALIDA."
            END-EVALUATE.
-       *>---PARAGRAFO CRIAR CONTA---
-        CRIAR-CONTA.
+      *>---PARAGRAFO CRIAR CONTA---
+       CRIAR-CONTA.
            DISPLAY "INSIRA O NOME DO CLIENTE"
            ACCEPT NOME-CLIENTE
            DISPLAY "INSIRA O CPF: "
@@ -108,15 +111,15 @@
            DISPLAY "SALDO: " SALDO
 	.
 
-        OPEN EXTEND ARQUIVO-CONTAS
+       OPEN EXTEND ARQUIVO-CONTAS
            MOVE CONTADOR-CONTA   TO ARQ-NUM-CONTA
            MOVE NOME-CADASTRADO     TO ARQ-NOME
            MOVE SITUACAO         TO ARQ-STATUS
            MOVE DATA-CRIACAO     TO ARQ-DATA
            WRITE REGISTRO-ARQUIVO
-        CLOSE ARQUIVO-CONTAS.
+       CLOSE ARQUIVO-CONTAS.
 
-        LER-TODOS-REGISTROS.
+       LER-TODOS-REGISTROS.
            MOVE "N" TO FLAG-CPF-STATUS
            MOVE "N" TO EOF-FLAG
            OPEN INPUT ARQUIVO-CONTAS
@@ -129,13 +132,11 @@
                  IF ARQ-CPF = CPF AND ARQ-STATUS = "ATIVA"
                     MOVE "S" TO FLAG-CPF-STATUS
                  END-IF
-           
              END-READ
            END-PERFORM
-           CLOSE ARQUIVO-CONTAS
-	.
+           CLOSE ARQUIVO-CONTAS.
 
-        GERAR-NUMERO-CONTA.
+       GERAR-NUMERO-CONTA.
            ADD 1 TO CONTADOR-CONTA
            DISPLAY "NÚMERO DA CONTA: " CONTADOR-CONTA
            MOVE FUNCTION CURRENT-DATE TO DATA-COMPLETA
@@ -145,3 +146,21 @@
            MOVE DATA-COMPLETA(9:2) TO HH
            MOVE DATA-COMPLETA(11:2) TO MI
            MOVE DATA-COMPLETA(13:2) TO SS.
+
+      *>--CONSULTA DE SALDO-----
+       CONSULTAR-SALDO.
+           DISPLAY "INSIRA NOME OU CPF DO CLIENTE: "
+           ACCEPT CAMPO-BUSCA
+           
+           IF CAMPO-BUSCA IS NUMERIC
+              MOVE CAMPO-BUSCA TO CPF 
+              PERFORM BUSCAR-POR-CPF
+           ELSE
+              MOVE CAMPO-BUSCA TO NOME-CLIENTE
+              PERFORM BUSCAR-POR-NOME
+           END-IF.
+       
+       BUSCAR-POR-CPF.
+           DISPLAY "SALDO: " SALDO.
+       BUSCAR-POR-NOME.
+           DISPLAY "SALDO: " SALDO.
