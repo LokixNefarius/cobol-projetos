@@ -19,6 +19,7 @@
            05 ARQ-NOME      PIC X(30).
            05 ARQ-CPF       PIC 9(11).
            05 ARQ-STATUS    PIC X(7).
+           05 ARQ-SALDO     PIC S9(5)V99.
            05 ARQ-DATA      PIC X(14).
 
        WORKING-STORAGE SECTION.
@@ -32,7 +33,10 @@
        01 FLAG-CPF-STATUS    PIC X  VALUE "N".
            88 CPF-DUPLICADO      VALUE "S".
            88 CPF-DISPONIVEL     VALUE "N".
+       01 FLAG-NOME-STATUS   PIC X  VALUE "N".
+           88 NOME-ENCONTRADO     VALUE "S".
        01 CAMPO-BUSCA        PIC X(30).
+       01 VALOR-DEP          PIC S9(9)V99.
 
       *>EOF-FIM DO ARQUIVO
        01 EOF-FLAG              PIC X VALUE "N".
@@ -80,7 +84,7 @@
               WHEN 3
                  DISPLAY "SACANDO..."
               WHEN 4
-                 DISPLAY "DEPOSITANDO..."
+                 PERFORM DEPOSITAR
               WHEN 5
                  DISPLAY "ENCERRANDO CONTA..."
               WHEN 6
@@ -118,13 +122,15 @@
            DISPLAY "SALDO: " SALDO
 	.
 
-       OPEN EXTEND ARQUIVO-CONTAS
-           MOVE CONTADOR-CONTA   TO ARQ-NUM-CONTA
-           MOVE NOME-CADASTRADO     TO ARQ-NOME
-           MOVE SITUACAO         TO ARQ-STATUS
-           MOVE DATA-CRIACAO     TO ARQ-DATA
-           WRITE REGISTRO-ARQUIVO
-       CLOSE ARQUIVO-CONTAS.
+           OPEN EXTEND ARQUIVO-CONTAS
+              MOVE CONTADOR-CONTA   TO ARQ-NUM-CONTA
+              MOVE NOME-CADASTRADO  TO ARQ-NOME
+              MOVE CPF-CADASTRADO   TO ARQ-CPF
+              MOVE SITUACAO         TO ARQ-STATUS
+              MOVE SALDO            TO ARQ-SALDO
+              MOVE DATA-CRIACAO     TO ARQ-DATA
+              WRITE REGISTRO-ARQUIVO
+           CLOSE ARQUIVO-CONTAS.
 
        LER-TODOS-REGISTROS.
            MOVE "N" TO FLAG-CPF-STATUS
@@ -168,14 +174,90 @@
            END-IF.
        
        BUSCAR-POR-CPF.
-           IF SITUACAO = "ATIVA"
-              DISPLAY "SALDO: " SALDO
+           MOVE "N" TO EOF-FLAG
+           MOVE "N" TO FLAG-CPF-STATUS  
+           OPEN INPUT ARQUIVO-CONTAS 
+           PERFORM UNTIL FIM-ARQUIVO OR CPF-DUPLICADO
+               READ ARQUIVO-CONTAS 
+                  AT END
+                     SET FIM-ARQUIVO TO TRUE 
+                  NOT AT END
+                     IF ARQ-CPF = CPF 
+                     *>CARREGA CAMPOS DE ARQUIVO NAS VARIAVEIS DE 
+                     *>TRABALHO
+                        MOVE ARQ-NOME TO NOME-CADASTRADO 
+                        MOVE ARQ-STATUS TO SITUACAO
+                        MOVE ARQ-SALDO TO SALDO 
+                        MOVE ARQ-DATA TO DATA-CRIACAO
+                        SET CPF-DUPLICADO TO TRUE
+                     END-IF
+               END-READ
+           END-PERFORM
+           CLOSE ARQUIVO-CONTAS.
+           IF FLAG-CPF-STATUS = "S" 
+              *>IF SITUACAO = "ATIVA"
+                 DISPLAY "SALDO: " SALDO
+              *>ELSE
+                 *>DISPLAY "CONTA INATIVA"
+              *>END-IF
            ELSE
-              DISPLAY "CONTA INATIVA"
+              DISPLAY "CONTA NÃO ENCONTRADA."
            END-IF.
        BUSCAR-POR-NOME.
-           IF SITUACAO = "ATIVA"
-              DISPLAY "SALDO: " SALDO
+           MOVE "N" TO EOF-FLAG
+           MOVE "N" TO FLAG-NOME-STATUS  
+           OPEN INPUT ARQUIVO-CONTAS 
+           PERFORM UNTIL FIM-ARQUIVO OR FLAG-NOME-STATUS = "S" 
+               READ ARQUIVO-CONTAS 
+                  AT END
+                     SET FIM-ARQUIVO TO TRUE 
+                  NOT AT END
+                     IF ARQ-NOME = NOME-CADASTRADO 
+                        *>MOVE "S" TO FLAG-NOME-STATUS
+                     *>CARREGA CAMPOS DE ARQUIVO NAS VARIAVEIS DE 
+                     *>TRABALHO
+                        MOVE ARQ-NOME TO NOME-CADASTRADO 
+                        MOVE ARQ-STATUS TO SITUACAO
+                        MOVE ARQ-SALDO TO SALDO 
+                        MOVE ARQ-DATA TO DATA-CRIACAO
+                        SET NOME-ENCONTRADO TO TRUE
+                     END-IF
+               END-READ
+           END-PERFORM
+           CLOSE ARQUIVO-CONTAS.
+           IF FLAG-NOME-STATUS = "S"  
+              IF SITUACAO = "ATIVA"
+                 DISPLAY "SALDO: " SALDO
+              ELSE
+                 DISPLAY "CONTA INATIVA"
+              END-IF
            ELSE
-              DISPLAY "CONTA INATIVA"
+               DISPLAY "CONTA NÃO ENCONTRADA."
+           END-IF.
+      *>DEPOSITO---
+       DEPOSITAR.
+           DISPLAY "INSIRA NOME OU CPF DO CLIENTE: "
+           ACCEPT CAMPO-BUSCA
+           
+           IF CAMPO-BUSCA IS NUMERIC AND SITUACAO = "ATIVA"
+              MOVE CAMPO-BUSCA TO CPF
+           ELSE
+              MOVE CAMPO-BUSCA TO NOME-CLIENTE
+           END-IF
+
+           IF SITUACAO = "ATIVA"
+              DISPLAY "INSIRA O VALOR DO DEPOSITO: "
+              ACCEPT VALOR-DEP
+              IF VALOR-DEP > 0
+                 ADD VALOR-DEP TO SALDO
+                 OPEN EXTEND ARQUIVO-CONTAS
+                     MOVE SALDO TO ARQ-SALDO
+                     WRITE REGISTRO-ARQUIVO
+                 CLOSE ARQUIVO-CONTAS
+                 DISPLAY "DEPOSITO REALIZADO COM SUCESSO."
+              ELSE  
+                 DISPLAY "VALOR INVÁLIDO PARA DEPÓSITO."
+              END-IF
+           ELSE
+              DISPLAY "CONTA INATIVA OU INEXISTENTE."
            END-IF.
