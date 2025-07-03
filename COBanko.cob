@@ -36,7 +36,7 @@
 
       *>EOF-FIM DO ARQUIVO
        01 EOF-FLAG              PIC X VALUE "N".
-           88 EOF-ARQUIVO        VALUE "S". 
+           88 FIM-ARQUIVO        VALUE "S". 
            88 LER-CONTINUAR      VALUE "N".
       *>-------REGISTRO DE DADOS-------
        01 REGISTRO-CONTA.
@@ -59,8 +59,7 @@
 
       *>--------------------LÓGICA----------------------
        PROCEDURE DIVISION.
-           OPEN OUTPUT ARQUIVO-CONTAS 
-           CLOSE ARQUIVO-CONTAS
+       MAIN-PROCEDURE.
            PERFORM MENU-PRINCIPAL UNTIL OPCAO-MENU = 6
            STOP RUN.
       *>------PARAGRAFO MENU--------
@@ -90,6 +89,14 @@
                  DISPLAY "OPÇÃO INVALIDA."
            END-EVALUATE.
       *>---PARAGRAFO CRIAR CONTA---
+       INICIALIZAR-ARQUIVO.
+           OPEN INPUT ARQUIVO-CONTAS
+           IF FILE-STATUS-ARQUIVO = "35"
+              OPEN OUTPUT ARQUIVO-CONTAS 
+              CLOSE ARQUIVO-CONTAS
+           ELSE
+              CLOSE ARQUIVO-CONTAS
+           END-IF.
        CRIAR-CONTA.
            DISPLAY "INSIRA O NOME DO CLIENTE"
            ACCEPT NOME-CLIENTE
@@ -124,7 +131,7 @@
            MOVE "N" TO EOF-FLAG
            OPEN INPUT ARQUIVO-CONTAS
 
-           PERFORM UNTIL EOF-ARQUIVO OR CPF-DUPLICADO
+           PERFORM UNTIL FIM-ARQUIVO OR CPF-DUPLICADO
              READ ARQUIVO-CONTAS
                 AT END
                  MOVE "S" TO EOF-FLAG
@@ -161,6 +168,14 @@
            END-IF.
        
        BUSCAR-POR-CPF.
-           DISPLAY "SALDO: " SALDO.
+           IF SITUACAO = "ATIVA"
+              DISPLAY "SALDO: " SALDO
+           ELSE
+              DISPLAY "CONTA INATIVA"
+           END-IF.
        BUSCAR-POR-NOME.
-           DISPLAY "SALDO: " SALDO.
+           IF SITUACAO = "ATIVA"
+              DISPLAY "SALDO: " SALDO
+           ELSE
+              DISPLAY "CONTA INATIVA"
+           END-IF.
